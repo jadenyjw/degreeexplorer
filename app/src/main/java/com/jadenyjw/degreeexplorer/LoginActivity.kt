@@ -3,8 +3,6 @@ package com.jadenyjw.degreeexplorer
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.TargetApi
-import android.content.pm.PackageManager
-import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
 import android.app.LoaderManager.LoaderCallbacks
 import android.content.CursorLoader
@@ -15,16 +13,23 @@ import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
-import android.text.TextUtils
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.TextView
 
 import java.util.ArrayList
-import android.Manifest.permission.READ_CONTACTS
 
 import kotlinx.android.synthetic.main.activity_login.*
+import java.io.BufferedInputStream
+import java.net.URL
+import java.security.KeyStore
+import java.security.cert.Certificate
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
 
 /**
  * A login screen that offers login via email/password.
@@ -39,7 +44,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
         // Set up the login form.
-        populateAutoComplete()
+
         password.setOnEditorActionListener(TextView.OnEditorActionListener { _, id, _ ->
             if (id == EditorInfo.IME_ACTION_DONE || id == EditorInfo.IME_NULL) {
                 attemptLogin()
@@ -49,43 +54,6 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         })
 
         email_sign_in_button.setOnClickListener { attemptLogin() }
-    }
-
-    private fun populateAutoComplete() {
-        if (!mayRequestContacts()) {
-            return
-        }
-
-        loaderManager.initLoader(0, null, this)
-    }
-
-    private fun mayRequestContacts(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true
-        }
-        if (checkSelfPermission(READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-            return true
-        }
-        if (shouldShowRequestPermissionRationale(READ_CONTACTS)) {
-            Snackbar.make(email, R.string.permission_rationale, Snackbar.LENGTH_INDEFINITE)
-                    .setAction(android.R.string.ok,
-                            { requestPermissions(arrayOf(READ_CONTACTS), REQUEST_READ_CONTACTS) })
-        } else {
-            requestPermissions(arrayOf(READ_CONTACTS), REQUEST_READ_CONTACTS)
-        }
-        return false
-    }
-
-    /**
-     * Callback received when a permissions request has been completed.
-     */
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>,
-                                            grantResults: IntArray) {
-        if (requestCode == REQUEST_READ_CONTACTS) {
-            if (grantResults.size == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                populateAutoComplete()
-            }
-        }
     }
 
 
@@ -110,23 +78,6 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         var cancel = false
         var focusView: View? = null
 
-        // Check for a valid password, if the user entered one.
-        if (!TextUtils.isEmpty(passwordStr) && !isPasswordValid(passwordStr)) {
-            password.error = getString(R.string.error_invalid_password)
-            focusView = password
-            cancel = true
-        }
-
-        // Check for a valid email address.
-        if (TextUtils.isEmpty(emailStr)) {
-            email.error = getString(R.string.error_field_required)
-            focusView = email
-            cancel = true
-        } else if (!isEmailValid(emailStr)) {
-            email.error = getString(R.string.error_invalid_email)
-            focusView = email
-            cancel = true
-        }
 
         if (cancel) {
             // There was an error; don't attempt login and focus the first
@@ -141,15 +92,6 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         }
     }
 
-    private fun isEmailValid(email: String): Boolean {
-        //TODO: Replace this with your own logic
-        return email.contains("@")
-    }
-
-    private fun isPasswordValid(password: String): Boolean {
-        //TODO: Replace this with your own logic
-        return password.length > 4
-    }
 
     /**
      * Shows the progress UI and hides the login form.
@@ -244,21 +186,65 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         override fun doInBackground(vararg params: Void): Boolean? {
             // TODO: attempt authentication against a network service.
 
+            // Load CAs from an InputStream
+            // (could be from a resource or ByteArrayInputStream or ...)
+            val cf = CertificateFactory.getInstance("X.509")
+            // From https://www.washington.edu/itconnect/security/ca/load-der.crt
+            var ca1Input = BufferedInputStream(resources.openRawResource(R.raw.cert1))
+
+            val ca1: Certificate
             try {
-                // Simulate network access.
-                Thread.sleep(2000)
-            } catch (e: InterruptedException) {
-                return false
+                ca1 = cf.generateCertificate(ca1Input)
+                println("ca=" + (ca1 as X509Certificate).subjectDN)
+            } finally {
+                ca1Input.close()
+            }
+            val ca2Input = BufferedInputStream(resources.openRawResource(R.raw.cert2))
+
+            val ca2: Certificate
+            try {
+                ca2 = cf.generateCertificate(ca2Input)
+                println("ca=" + (ca2 as X509Certificate).subjectDN)
+            } finally {
+                ca2Input.close()
             }
 
-            return DUMMY_CREDENTIALS
-                    .map { it.split(":") }
-                    .firstOrNull { it[0] == mEmail }
-                    ?.let {
-                        // Account exists, return true if the password matches.
-                        it[1] == mPassword
-                    }
-                    ?: true
+            val ca3Input = BufferedInputStream(resources.openRawResource(R.raw.cert3))
+
+            val ca3: Certificate
+            try {
+                ca3 = cf.generateCertificate(ca3Input)
+                println("ca=" + (ca3 as X509Certificate).subjectDN)
+            } finally {
+                ca3Input.close()
+            }
+
+
+            // Create a KeyStore containing our trusted CAs
+            val keyStoreType = KeyStore.getDefaultType()
+            val keyStore = KeyStore.getInstance(keyStoreType)
+            keyStore.load(null, null)
+            keyStore.setCertificateEntry("ca1", ca1)
+            keyStore.setCertificateEntry("ca2", ca2)
+            keyStore.setCertificateEntry("ca3", ca3)
+
+            // Create a TrustManager that trusts the CAs in our KeyStore
+            val tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm()
+            val tmf = TrustManagerFactory.getInstance(tmfAlgorithm)
+            tmf.init(keyStore)
+
+            // Create an SSLContext that uses our TrustManager
+            val context = SSLContext.getInstance("TLS")
+            context.init(null, tmf.trustManagers, null)
+
+            // Tell the URLConnection to use a SocketFactory from our SSLContext
+            val url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
+            val urlConnection = url.openConnection() as HttpsURLConnection
+            urlConnection.sslSocketFactory = context.socketFactory
+            val `in` = urlConnection.inputStream
+
+
+            return true
         }
 
         override fun onPostExecute(success: Boolean?) {
