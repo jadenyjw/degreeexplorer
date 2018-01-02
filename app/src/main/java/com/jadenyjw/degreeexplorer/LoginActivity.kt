@@ -3,6 +3,7 @@ package com.jadenyjw.degreeexplorer
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.TargetApi
+import android.app.DownloadManager
 import android.support.v7.app.AppCompatActivity
 import android.app.LoaderManager.LoaderCallbacks
 import android.content.CursorLoader
@@ -17,15 +18,18 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.TextView
+import com.android.volley.Request
+import com.android.volley.Response
+import com.android.volley.VolleyError
+import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 
 import java.util.ArrayList
 
 import kotlinx.android.synthetic.main.activity_login.*
-import java.io.BufferedInputStream
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.io.InputStream
+import org.apache.commons.io.IOUtils
+import java.io.*
+import java.net.HttpCookie
 import java.net.URL
 import java.security.KeyStore
 import java.security.cert.Certificate
@@ -190,15 +194,27 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         override fun doInBackground(vararg params: Void): Boolean? {
             // TODO: attempt authentication against a network service.
 
-            val context = DegreeExplorerApplication.sslContext;
-
-            // Tell the URLConnection to use a SocketFactory from our SSLContext
             val url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
             val urlConnection = url.openConnection() as HttpsURLConnection
-            urlConnection.sslSocketFactory = context.socketFactory
-            val hurlStack = CustomHurlStack();
-            val mRequestQueue = Volley.newRequestQueue(applicationContext, hurlStack);
+            urlConnection.sslSocketFactory = DegreeExplorerApplication.sslContext.socketFactory
+            val `in` = urlConnection.inputStream
+            /*
+            val COOKIES_HEADER = "Set-Cookie"
+            val msCookieManager = java.net.CookieManager()
+            val headerFields = urlConnection.headerFields
+            val cookiesHeader = headerFields[COOKIES_HEADER]
+            if (cookiesHeader != null)
+            {
+                for (cookie in cookiesHeader)
+                {
+                    msCookieManager.cookieStore.add(null!!, HttpCookie.parse(cookie).get(0))
+                    print(HttpCookie.parse(cookie).get(0))
+                }
+            }
+            */
 
+            val inputAsString = `in`.bufferedReader().use { it.readText() }
+            print(inputAsString)
             return true
         }
 
