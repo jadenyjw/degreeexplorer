@@ -25,13 +25,11 @@ soup = BeautifulSoup(r.text, 'html.parser')
 saml = soup.find("input", {"name":"SAMLResponse"})['value']
 print(r.text)
 cookies = dict(DPSamlSpReqURL='/degreeExplorer/', redirectUrl='http://www.acorn.utoronto.ca/dxLogout.html')
-headers = {'user-agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'}
-r = requests.post('https://degreeexplorer.utoronto.ca/spACS', verify=False, cookies=cookies, data = {'SAMLResponse': saml}, headers=headers, allow_redirects=False)
+r = requests.post('https://degreeexplorer.utoronto.ca/spACS', verify=False, cookies=cookies, data = {'SAMLResponse': saml}, allow_redirects=False)
 auth = r.cookies
-print(auth)
 
 r = requests.get('https://degreeexplorer.utoronto.ca/degreeExplorer/rest/dxMenu/getStudentUserData', cookies=auth, verify=False)
 auth.update(r.cookies)
+print(auth)
 r = requests.get('https://degreeexplorer.utoronto.ca/degreeExplorer/rest/dxPlanner/getPlanner', cookies=auth, verify=False)
-
 print(r.text)
