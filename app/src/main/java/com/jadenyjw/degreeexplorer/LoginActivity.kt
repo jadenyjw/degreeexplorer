@@ -22,6 +22,9 @@ import java.util.ArrayList
 
 import kotlinx.android.synthetic.main.activity_login.*
 import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 import java.net.URL
 import java.security.KeyStore
 import java.security.cert.Certificate
@@ -186,63 +189,19 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         override fun doInBackground(vararg params: Void): Boolean? {
             // TODO: attempt authentication against a network service.
 
-            // Load CAs from an InputStream
-            // (could be from a resource or ByteArrayInputStream or ...)
-            val cf = CertificateFactory.getInstance("X.509")
-            // From https://www.washington.edu/itconnect/security/ca/load-der.crt
-            var ca1Input = BufferedInputStream(resources.openRawResource(R.raw.cert1))
-
-            val ca1: Certificate
-            try {
-                ca1 = cf.generateCertificate(ca1Input)
-                println("ca=" + (ca1 as X509Certificate).subjectDN)
-            } finally {
-                ca1Input.close()
-            }
-            val ca2Input = BufferedInputStream(resources.openRawResource(R.raw.cert2))
-
-            val ca2: Certificate
-            try {
-                ca2 = cf.generateCertificate(ca2Input)
-                println("ca=" + (ca2 as X509Certificate).subjectDN)
-            } finally {
-                ca2Input.close()
-            }
-
-            val ca3Input = BufferedInputStream(resources.openRawResource(R.raw.cert3))
-
-            val ca3: Certificate
-            try {
-                ca3 = cf.generateCertificate(ca3Input)
-                println("ca=" + (ca3 as X509Certificate).subjectDN)
-            } finally {
-                ca3Input.close()
-            }
-
-
-            // Create a KeyStore containing our trusted CAs
-            val keyStoreType = KeyStore.getDefaultType()
-            val keyStore = KeyStore.getInstance(keyStoreType)
-            keyStore.load(null, null)
-            keyStore.setCertificateEntry("ca1", ca1)
-            keyStore.setCertificateEntry("ca2", ca2)
-            keyStore.setCertificateEntry("ca3", ca3)
-
-            // Create a TrustManager that trusts the CAs in our KeyStore
-            val tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm()
-            val tmf = TrustManagerFactory.getInstance(tmfAlgorithm)
-            tmf.init(keyStore)
-
-            // Create an SSLContext that uses our TrustManager
-            val context = SSLContext.getInstance("TLS")
-            context.init(null, tmf.trustManagers, null)
+            val context = DegreeExplorerApplication.sslContext;
 
             // Tell the URLConnection to use a SocketFactory from our SSLContext
             val url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
             val urlConnection = url.openConnection() as HttpsURLConnection
             urlConnection.sslSocketFactory = context.socketFactory
             val `in` = urlConnection.inputStream
-
+            try {
+                val `in` = BufferedInputStream(urlConnection.inputStream)
+                readStream(`in`)
+            } finally {
+                urlConnection.disconnect()
+            }
 
             return true
         }
@@ -277,5 +236,20 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
          * TODO: remove after connecting to a real authentication system.
          */
         private val DUMMY_CREDENTIALS = arrayOf("foo@example.com:hello", "bar@example.com:world")
+    }
+
+    private fun readStream(`is`: InputStream): String {
+        try {
+            val bo = ByteArrayOutputStream()
+            var i = `is`.read()
+            while (i != -1) {
+                bo.write(i)
+                i = `is`.read()
+            }
+            return bo.toString()
+        } catch (e: IOException) {
+            return ""
+        }
+
     }
 }
