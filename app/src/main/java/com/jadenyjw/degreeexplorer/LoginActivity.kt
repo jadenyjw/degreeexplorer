@@ -17,6 +17,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.TextView
+import com.android.volley.toolbox.Volley
 
 import java.util.ArrayList
 
@@ -195,13 +196,8 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             val url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
             val urlConnection = url.openConnection() as HttpsURLConnection
             urlConnection.sslSocketFactory = context.socketFactory
-            val `in` = urlConnection.inputStream
-            try {
-                val `in` = BufferedInputStream(urlConnection.inputStream)
-                readStream(`in`)
-            } finally {
-                urlConnection.disconnect()
-            }
+            val hurlStack = CustomHurlStack();
+            val mRequestQueue = Volley.newRequestQueue(applicationContext, hurlStack);
 
             return true
         }
@@ -224,19 +220,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         }
     }
 
-    companion object {
 
-        /**
-         * Id to identity READ_CONTACTS permission request.
-         */
-        private val REQUEST_READ_CONTACTS = 0
-
-        /**
-         * A dummy authentication store containing known user names and passwords.
-         * TODO: remove after connecting to a real authentication system.
-         */
-        private val DUMMY_CREDENTIALS = arrayOf("foo@example.com:hello", "bar@example.com:world")
-    }
 
     private fun readStream(`is`: InputStream): String {
         try {
