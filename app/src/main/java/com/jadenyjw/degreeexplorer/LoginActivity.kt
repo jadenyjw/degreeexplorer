@@ -19,6 +19,9 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import java.util.ArrayList
 import kotlinx.android.synthetic.main.activity_login.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import java.io.*
 import java.net.HttpCookie
 import java.net.URL
@@ -170,8 +173,19 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         override fun doInBackground(vararg params: Void): Boolean? {
             // TODO: attempt authentication against a network service.
 
+            val client = OkHttpClient()
+
             //This block makes the original request.
             var url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
+            @Throws(IOException::class)
+            fun run(url:String):String {
+                val request = Request.Builder()
+                        .url(url)
+                        .build()
+                val response = client.newCall(request).execute()
+                return response.body().string()
+            }
+
             var urlConnection = url.openConnection() as HttpsURLConnection
             urlConnection.requestMethod = "GET"
             urlConnection.instanceFollowRedirects = false
