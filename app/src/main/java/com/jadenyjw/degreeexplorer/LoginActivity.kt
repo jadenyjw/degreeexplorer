@@ -3,7 +3,6 @@ package com.jadenyjw.degreeexplorer
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.TargetApi
-import android.app.DownloadManager
 import android.support.v7.app.AppCompatActivity
 import android.app.LoaderManager.LoaderCallbacks
 import android.content.CursorLoader
@@ -18,26 +17,14 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.TextView
-import com.android.volley.Request
-import com.android.volley.Response
-import com.android.volley.VolleyError
-import com.android.volley.toolbox.StringRequest
-import com.android.volley.toolbox.Volley
-
 import java.util.ArrayList
-
 import kotlinx.android.synthetic.main.activity_login.*
-import org.apache.commons.io.IOUtils
 import java.io.*
 import java.net.HttpCookie
 import java.net.URL
-import java.security.KeyStore
-import java.security.cert.Certificate
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
+import java.net.URLEncoder
 import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManagerFactory
+
 
 /**
  * A login screen that offers login via email/password.
@@ -189,32 +176,97 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    inner class UserLoginTask internal constructor(private val mEmail: String, private val mPassword: String) : AsyncTask<Void, Void, Boolean>() {
+    inner class UserLoginTask internal constructor(private val mUTORID: String, private val mPassword: String) : AsyncTask<Void, Void, Boolean>() {
 
         override fun doInBackground(vararg params: Void): Boolean? {
             // TODO: attempt authentication against a network service.
 
-            val url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
-            val urlConnection = url.openConnection() as HttpsURLConnection
+            //This block makes the original request.
+            var url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
+            var urlConnection = url.openConnection() as HttpsURLConnection
+            urlConnection.requestMethod = "GET"
+            urlConnection.instanceFollowRedirects = false
             urlConnection.sslSocketFactory = DegreeExplorerApplication.sslContext.socketFactory
-            val `in` = urlConnection.inputStream
-            /*
+            urlConnection.connect()
+            var responseCode = urlConnection.responseCode
+            println(responseCode)
+            var location = urlConnection.getHeaderField("Location")
+            println(location)
+
+            //This block makes the SAML request.
+            url = URL(location)
+            urlConnection = url.openConnection() as HttpsURLConnection
+            urlConnection.requestMethod = "GET"
+            urlConnection.instanceFollowRedirects = false
+            urlConnection.sslSocketFactory = DegreeExplorerApplication.sslContext.socketFactory
+            responseCode = urlConnection.responseCode
+            println(responseCode)
             val COOKIES_HEADER = "Set-Cookie"
             val msCookieManager = java.net.CookieManager()
-            val headerFields = urlConnection.headerFields
-            val cookiesHeader = headerFields[COOKIES_HEADER]
-            if (cookiesHeader != null)
-            {
-                for (cookie in cookiesHeader)
-                {
-                    msCookieManager.cookieStore.add(null!!, HttpCookie.parse(cookie).get(0))
-                    print(HttpCookie.parse(cookie).get(0))
-                }
+            val cookiesHeader = urlConnection.getHeaderField("Set-Cookie")
+            var cookies = HttpCookie.parse(cookiesHeader)
+            for (cookie in cookies){
+                msCookieManager.cookieStore.add(null, cookie)
+                println(cookie)
             }
-            */
 
-            val inputAsString = `in`.bufferedReader().use { it.readText() }
-            print(inputAsString)
+
+            location = urlConnection.getHeaderField("Location")
+            println(location)
+
+            //Strips the JSESSIONID from the URL.
+            var in_session = false
+            var new_url = ""
+            var jsession_id = ""
+            for (char in location) {
+                if (char == ';')
+                    in_session = true
+                if (char == '?')
+                    in_session = false
+
+                if (!in_session)
+                    new_url += char
+                else
+                    jsession_id += char
+            }
+
+            location = new_url
+
+            //This block logs in the user.
+            url = URL("https://idpz.utorauth.utoronto.ca" + location)
+            urlConnection = url.openConnection() as HttpsURLConnection
+            urlConnection.setRequestProperty("Cookie", msCookieManager.cookieStore.cookies[0].toString() + ";");
+            urlConnection.sslSocketFactory = DegreeExplorerApplication.sslContext.socketFactory
+            println(msCookieManager.cookieStore.cookies[0].toString())
+            urlConnection.instanceFollowRedirects = true
+            urlConnection.requestMethod = "POST"
+            urlConnection.doOutput = true;
+            urlConnection.setRequestProperty( "Content-Type", "application/x-www-form-urlencoded");
+            
+            val encodedID = URLEncoder.encode(mUTORID,"UTF-8")
+            val encodedPass = URLEncoder.encode(mPassword,"UTF-8")
+
+            var urlParameters = "j_username=$encodedID&j_password=$encodedPass&_eventId_proceed="
+
+            val wr = DataOutputStream(urlConnection.getOutputStream())
+            val writer = BufferedWriter(OutputStreamWriter(wr, "UTF-8"))
+            writer.write(urlParameters)
+            writer.flush()
+            writer.close()
+            wr.close()
+
+            urlConnection.connect()
+
+            responseCode = urlConnection.responseCode
+            System.out.println("\nSending 'POST' request to URL : " + url)
+            System.out.println("Post parameters : " + urlParameters)
+            println("Response Code : " + responseCode)
+
+            println(urlConnection.responseMessage)
+            location = urlConnection.getHeaderField("Set-Cookie")
+            println(location)
+
+
             return true
         }
 
