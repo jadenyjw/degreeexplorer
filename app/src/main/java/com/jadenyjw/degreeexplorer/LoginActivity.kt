@@ -58,27 +58,15 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
      * errors are presented and no actual login attempt is made.
      */
     private fun attemptLogin() {
-        if (mAuthTask != null) {
-            return
-        }
+        if (mAuthTask == null) {
+            // Reset errors.
+            email.error = null
+            password.error = null
 
-        // Reset errors.
-        email.error = null
-        password.error = null
+            // Store values at the time of the login attempt.
+            val emailStr = email.text.toString()
+            val passwordStr = password.text.toString()
 
-        // Store values at the time of the login attempt.
-        val emailStr = email.text.toString()
-        val passwordStr = password.text.toString()
-
-        var cancel = false
-        var focusView: View? = null
-
-
-        if (cancel) {
-            // There was an error; don't attempt login and focus the first
-            // form field with an error.
-            focusView?.requestFocus()
-        } else {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true)
@@ -150,10 +138,6 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         }
 
         addEmailsToAutoComplete(emails)
-    }
-
-    override fun onLoaderReset(cursorLoader: Loader<Cursor>) {
-
     }
 
     private fun addEmailsToAutoComplete(emailAddressCollection: List<String>) {
@@ -286,22 +270,5 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             mAuthTask = null
             showProgress(false)
         }
-    }
-
-
-
-    private fun readStream(`is`: InputStream): String {
-        try {
-            val bo = ByteArrayOutputStream()
-            var i = `is`.read()
-            while (i != -1) {
-                bo.write(i)
-                i = `is`.read()
-            }
-            return bo.toString()
-        } catch (e: IOException) {
-            return ""
-        }
-
     }
 }
