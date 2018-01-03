@@ -225,14 +225,12 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             urlConnection.instanceFollowRedirects = true
             urlConnection.requestMethod = "POST"
             urlConnection.doOutput = true;
+
             urlConnection.setRequestProperty( "Content-Type", "application/x-www-form-urlencoded");
-            
-            val encodedID = URLEncoder.encode(mUTORID,"UTF-8")
-            val encodedPass = URLEncoder.encode(mPassword,"UTF-8")
 
-            var urlParameters = "j_username=$encodedID&j_password=$encodedPass&_eventId_proceed="
+            var urlParameters = "j_username=$mUTORID&j_password=$mPassword&_eventId_proceed="
 
-            val wr = DataOutputStream(urlConnection.getOutputStream())
+            val wr = DataOutputStream(urlConnection.outputStream)
             val writer = BufferedWriter(OutputStreamWriter(wr, "UTF-8"))
             writer.write(urlParameters)
             writer.flush()
@@ -249,6 +247,11 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             println(urlConnection.responseMessage)
             location = urlConnection.getHeaderField("Set-Cookie")
             println(location)
+
+
+            val `in` = urlConnection.errorStream
+            val inputAsString = `in`.bufferedReader().use { it.readText() }
+            print(inputAsString)
 
 
             return true
