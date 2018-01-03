@@ -30,6 +30,7 @@ import javax.net.ssl.HttpsURLConnection
  * A login screen that offers login via email/password.
  */
 class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
+
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
@@ -138,6 +139,10 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         }
 
         addEmailsToAutoComplete(emails)
+    }
+
+    override fun onLoaderReset(loader: Loader<Cursor>?) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     private fun addEmailsToAutoComplete(emailAddressCollection: List<String>) {
