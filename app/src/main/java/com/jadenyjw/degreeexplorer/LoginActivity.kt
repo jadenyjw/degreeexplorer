@@ -19,9 +19,7 @@ import android.widget.ArrayAdapter
 import android.widget.TextView
 import java.util.ArrayList
 import kotlinx.android.synthetic.main.activity_login.*
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
+import okhttp3.*
 import java.io.*
 import java.net.HttpCookie
 import java.net.URL
@@ -173,19 +171,76 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         override fun doInBackground(vararg params: Void): Boolean? {
             // TODO: attempt authentication against a network service.
 
-            val client = OkHttpClient()
+            val client = OkHttpClient.Builder()
+                    .sslSocketFactory(DegreeExplorerApplication.sslContext.socketFactory, DegreeExplorerApplication.trustManager)
+                    .followRedirects(false)
+                    .build()
+
 
             //This block makes the original request.
             var url = URL("https://degreeexplorer.utoronto.ca/degreeexplorer/")
-            @Throws(IOException::class)
-            fun run(url:String):String {
-                val request = Request.Builder()
-                        .url(url)
-                        .build()
-                val response = client.newCall(request).execute()
-                return response.body().string()
+
+            var request = Request.Builder()
+                    .url(url)
+                    .build()
+
+            var response = client.newCall(request).execute()
+            url = URL(response.headers()!!.get("Location"))
+
+            //This block calls the intermediate SAML link and gets a JSESSIONID
+            request = Request.Builder()
+                    .url(url)
+                    .build()
+            response = client.newCall(request).execute()
+
+            var cookieHeader = response.headers()!!.get("Set-Cookie")
+            var jsessionid = HttpCookie.parse(cookieHeader)[0]
+            var location = response.headers()!!.get("Location")
+
+
+            var in_session = false
+            var new_url = ""
+            var jsession_id = ""
+            location!!.forEach { char ->
+                if (char == ';')
+                    in_session = true
+                if (char == '?')
+                    in_session = false
+
+                if (!in_session)
+                    new_url += char
+                else
+                    jsession_id += char
             }
 
+            location = new_url
+
+            url = URL("https://idpz.utorauth.utoronto.ca" + response.headers()!!.get("Location"))
+
+            println(jsessionid.value)
+            println("https://idpz.utorauth.utoronto.ca" + location)
+
+
+            var formBody = FormBody.Builder()
+                .add("j_username", mUTORID)
+                    .add("j_password", mPassword)
+                    .add("_eventId_proceed", "")
+                .build();
+            println(formBody.contentType())
+
+            request = Request.Builder()
+                .url("https://idpz.utorauth.utoronto.ca" + location)
+                    .addHeader("Cookie", "JSESSIONID=" + jsessionid.value)
+                    .addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8")
+                    .addHeader("Accept-Encoding", "gzip, deflate, br")
+                .post(formBody)
+                .build();
+            response = client.newCall(request).execute()
+            println(response.body()!!.string())
+
+
+
+            /*
             var urlConnection = url.openConnection() as HttpsURLConnection
             urlConnection.requestMethod = "GET"
             urlConnection.instanceFollowRedirects = false
@@ -271,7 +326,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             val `in` = urlConnection.errorStream
             val inputAsString = `in`.bufferedReader().use { it.readText() }
             print(inputAsString)
-
+            */
 
             return true
         }

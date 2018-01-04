@@ -9,6 +9,7 @@ import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 
 /**
  * Created by jaden on 1/2/18.
@@ -19,6 +20,7 @@ class DegreeExplorerApplication : Application() {
     companion object {
 
         lateinit var sslContext: SSLContext
+        lateinit var trustManager: X509TrustManager
     }
 
     override fun onCreate() {
@@ -58,6 +60,7 @@ class DegreeExplorerApplication : Application() {
         val tmf = TrustManagerFactory.getInstance(tmfAlgorithm)
         tmf.init(keyStore)
 
+        trustManager = tmf.trustManagers[0] as X509TrustManager
         // Create an SSLContext that uses our TrustManager
         sslContext = SSLContext.getInstance("TLS")
         sslContext.init(null, tmf.trustManagers, null)
